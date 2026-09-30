@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    :root {
+      --bg: #f4f5f7; --card: #fff; --text: #1f2937; --muted: #6b7280; --line: #e5e7eb;
+      --accent: #2563eb; --ok: #15803d; --ok-bg: #dcfce7; --warn: #b45309; --warn-bg: #fef3c7;
+      --bad: #b91c1c; --bad-bg: #fee2e2;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+    header { background: #111827; color: #fff; padding: 20px 24px; }
+    header h1 { margin: 0; font-size: 22px; }
+    header p { margin: 4px 0 0; color: #9ca3af; font-size: 14px; }
+    main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 40px; }
+
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+    .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; cursor: pointer; }
+    .kpi.activo { outline: 2px solid var(--accent); }
+    .kpi .label { font-size: 13px; color: var(--muted); }
+    .kpi .valor { font-size: 28px; font-weight: 700; margin-top: 4px; }
+    .kpi.ok .valor { color: var(--ok); } .kpi.warn .valor { color: var(--warn); } .kpi.bad .valor { color: var(--bad); }
+
+    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-top: 16px; }
+    .panel h2 { font-size: 16px; margin: 0 0 12px; }
+
+    .barras .fila { display: grid; grid-template-columns: 110px 1fr 70px; align-items: center; gap: 10px; margin: 6px 0; font-size: 14px; }
+    .barra { display: flex; height: 18px; border-radius: 4px; overflow: hidden; background: var(--line); }
+    .barra span { display: block; height: 100%; }
+    .leyenda { display: flex; gap: 16px; font-size: 13px; color: var(--muted); margin-top: 10px; flex-wrap: wrap; }
+    .leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; }
+
+    .filtros { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .filtros input, .filtros select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; }
+    .filtros input { flex: 1; min-width: 200px; }
+
+    .tabla-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .badge { padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .badge.Disponible { background: var(--ok-bg); color: var(--ok); }
+    .badge.Bajo { background: var(--warn-bg); color: var(--warn); }
+    .badge.Agotado { background: var(--bad-bg); color: var(--bad); }
+    .vacio { text-align: center; color: var(--muted); padding: 24px; }
+    #cargando { text-align: center; padding: 40px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🔩 Dashboard de Herrajes</h1>
+    <p>Inventario de ejemplo (datos ficticios)</p>
+  </header>
+
+  <main>
+    <div id="cargando">Cargando inventario…</div>
+
+    <div id="contenido" style="display:none">
+      <section class="kpis">
+        <div class="kpi" data-estado=""><div class="label">Total de productos</div><div class="valor" id="k-total">0</div></div>
+        <div class="kpi ok" data-estado="Disponible"><div class="label">Disponibles</div><div class="valor" id="k-disp">0</div></div>
+        <div class="kpi warn" data-estado="Bajo stock"><div class="label">Bajo stock</div><div class="valor" id="k-bajo">0</div></div>
+        <div class="kpi bad" data-estado="Agotado"><div class="label">Agotados</div><div class="valor" id="k-agot">0</div></div>
+        <div class="kpi" data-estado=""><div class="label">Valor del inventario</div><div class="valor" id="k-valor">$0</div></div>
+      </section>
+
+      <section class="panel">
+        <h2>Disponibilidad por categoría</h2>
+        <div class="barras" id="barras"></div>
+        <div class="leyenda">
+          <span><i style="background:var(--ok)"></i>Disponible</span>
+          <span><i style="background:#f59e0b"></i>Bajo stock</span>
+          <span><i style="background:var(--bad)"></i>Agotado</span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Inventario</h2>
+        <div class="filtros">
+          <input id="buscar" type="search" placeholder="Buscar por nombre, código o material…">
+          <select id="f-categoria"><option value="">Todas las categorías</option></select>
+          <select id="f-estado">
+            <option value="">Todos los estados</option>
+            <option>Disponible</option>
+            <option>Bajo stock</option>
+            <option>Agotado</option>
+          </select>
+        </div>
+        <div class="tabla-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th><th>Nombre</th><th>Categoría</th><th>Material</th><th>Acabado</th>
+                <th class="num">Stock</th><th class="num">Mínimo</th><th class="num">Precio</th><th>Ubicación</th><th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tabla"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    var datos = [];
+    var dinero = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+
+    function iniciar(lista) {
+      datos = lista;
+      document.getElementById('cargando').style.display = 'none';
+      document.getElementById('contenido').style.display = '';
+      pintarKpis();
+      pintarBarras();
+      llenarCategorias();
+      pintarTabla();
+    }
+
+    function contar(estado) {
+      return datos.filter(function (h) { return h.estado === estado; }).length;
+    }
+
+    function pintarKpis() {
+      var valor = datos.reduce(function (s, h) { return s + h.stock * h.precio; }, 0);
+      document.getElementById('k-total').textContent = datos.length;
+      document.getElementById('k-disp').textContent = contar('Disponible');
+      document.getElementById('k-bajo').textContent = contar('Bajo stock');
+      document.getElementById('k-agot').textContent = contar('Agotado');
+      document.getElementById('k-valor').textContent = dinero.format(valor);
+    }
+
+    function categorias() {
+      var cats = [];
+      datos.forEach(function (h) { if (cats.indexOf(h.categoria) === -1) cats.push(h.categoria); });
+      return cats.sort();
+    }
+
+    function pintarBarras() {
+      var html = categorias().map(function (cat) {
+        var items = datos.filter(function (h) { return h.categoria === cat; });
+        var n = items.length;
+        var d = items.filter(function (h) { return h.estado === 'Disponible'; }).length;
+        var b = items.filter(function (h) { return h.estado === 'Bajo stock'; }).length;
+        var a = n - d - b;
+        return '<div class="fila"><span>' + cat + '</span>' +
+          '<div class="barra" title="' + d + ' disponibles, ' + b + ' bajo stock, ' + a + ' agotados">' +
+          '<span style="width:' + (d / n * 100) + '%;background:var(--ok)"></span>' +
+          '<span style="width:' + (b / n * 100) + '%;background:#f59e0b"></span>' +
+          '<span style="width:' + (a / n * 100) + '%;background:var(--bad)"></span>' +
+          '</div><span style="color:var(--muted)">' + d + ' de ' + n + '</span></div>';
+      }).join('');
+      document.getElementById('barras').innerHTML = html;
+    }
+
+    function llenarCategorias() {
+      var sel = document.getElementById('f-categoria');
+      categorias().forEach(function (c) {
+        var o = document.createElement('option');
+        o.textContent = c;
+        sel.appendChild(o);
+      });
+    }
+
+    function pintarTabla() {
+      var texto = document.getElementById('buscar').value.toLowerCase();
+      var cat = document.getElementById('f-categoria').value;
+      var est = document.getElementById('f-estado').value;
+
+      document.querySelectorAll('.kpi').forEach(function (k) {
+        k.classList.toggle('activo', est !== '' && k.dataset.estado === est);
+      });
+
+      var filtrados = datos.filter(function (h) {
+        var coincide = (h.nombre + ' ' + h.codigo + ' ' + h.material + ' ' + h.acabado).toLowerCase().indexOf(texto) !== -1;
+        return coincide && (!cat || h.categoria === cat) && (!est || h.estado === est);
+      });
+
+      var tbody = document.getElementById('tabla');
+      if (filtrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="vacio">No hay herrajes con esos filtros.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = filtrados.map(function (h) {
+        return '<tr>' +
+          '<td>' + h.codigo + '</td><td>' + h.nombre + '</td><td>' + h.categoria + '</td>' +
+          '<td>' + h.material + '</td><td>' + h.acabado + '</td>' +
+          '<td class="num">' + h.stock + '</td><td class="num">' + h.minimo + '</td>' +
+          '<td class="num">' + dinero.format(h.precio) + '</td><td>' + h.ubicacion + '</td>' +
+          '<td><span class="badge ' + h.estado.split(' ')[0] + '">' + h.estado + '</span></td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    document.getElementById('buscar').addEventListener('input', pintarTabla);
+    document.getElementById('f-categoria').addEventListener('change', pintarTabla);
+    document.getElementById('f-estado').addEventListener('change', pintarTabla);
+
+    // Al hacer clic en una tarjeta de arriba se filtra la tabla por ese estado.
+    document.querySelectorAll('.kpi').forEach(function (k) {
+      k.addEventListener('click', function () {
+        document.getElementById('f-estado').value = k.dataset.estado;
+        pintarTabla();
+      });
+    });
+
+    google.script.run
+      .withSuccessHandler(iniciar)
+      .withFailureHandler(function (e) {
+        document.getElementById('cargando').textContent = 'Error al cargar los datos: ' + e.message;
+      })
+      .getHerrajes();
+  </script>
+</body>
+</html>
