@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pronósticos de fútbol</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f6f5;
+      --surface: #ffffff;
+      --surface-2: #eef2f0;
+      --text: #14201b;
+      --muted: #5d6b65;
+      --border: #dde4e0;
+      --brand: #0b6b4a;
+      --brand-soft: #e3f3ec;
+      --win: #1f9d55;
+      --draw: #9aa5a0;
+      --loss: #d64545;
+      --home: #0b6b4a;
+      --away: #2f5fd0;
+      --value: #b7791f;
+      --value-soft: #fdf3e1;
+      --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.05);
+      --radius: 14px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0d1412;
+        --surface: #151f1c;
+        --surface-2: #1c2925;
+        --text: #e7efeb;
+        --muted: #93a39c;
+        --border: #263531;
+        --brand: #3ccf91;
+        --brand-soft: #173a2d;
+        --home: #3ccf91;
+        --away: #7aa2ff;
+        --value: #f0b54a;
+        --value-soft: #3a2d14;
+        --shadow: none;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #0d1412;
+      --surface: #151f1c;
+      --surface-2: #1c2925;
+      --text: #e7efeb;
+      --muted: #93a39c;
+      --border: #263531;
+      --brand: #3ccf91;
+      --brand-soft: #173a2d;
+      --home: #3ccf91;
+      --away: #7aa2ff;
+      --value: #f0b54a;
+      --value-soft: #3a2d14;
+      --shadow: none;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 48px; }
+
+    header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    h1 { font-size: 22px; margin: 0; letter-spacing: -.02em; }
+    .sub { color: var(--muted); font-size: 13px; }
+    .btn {
+      appearance: none; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+      border-radius: 10px; padding: 8px 14px; font: inherit; font-weight: 600; cursor: pointer;
+    }
+    .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+    :root[data-theme="dark"] .btn.primary { color: #08130f; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #08130f; } }
+    .btn:disabled { opacity: .55; cursor: wait; }
+    .acciones { display: flex; gap: 8px; }
+
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow); }
+    .stat b { display: block; font-size: 22px; letter-spacing: -.02em; }
+    .stat span { color: var(--muted); font-size: 12px; }
+
+    .filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 18px; }
+    .filtros input[type=search], .filtros select {
+      font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 8px 12px; min-width: 0;
+    }
+    .filtros input[type=search] { flex: 1 1 220px; }
+    .check { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-weight: 500; cursor: pointer; }
+
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 26px 0 10px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px; min-width: 0;
+    }
+    .card.top { border-color: var(--brand); }
+    .meta { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; }
+    .liga { font-weight: 700; color: var(--brand); }
+    .rank { font-weight: 800; color: var(--brand); margin-right: 6px; }
+
+    .equipos { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; }
+    .equipo { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .forma { display: flex; gap: 3px; }
+    .forma i {
+      font-style: normal; width: 17px; height: 17px; border-radius: 4px; display: grid; place-items: center;
+      font-size: 10px; font-weight: 700; color: #fff;
+    }
+    .forma .G { background: var(--win); }
+    .forma .E { background: var(--draw); }
+    .forma .P { background: var(--loss); }
+
+    .barra { display: flex; height: 26px; border-radius: 8px; overflow: hidden; font-size: 11px; font-weight: 700; color: #fff; }
+    .barra div { display: flex; align-items: center; justify-content: center; min-width: 0; white-space: nowrap; overflow: hidden; }
+    .barra .b1 { background: var(--home); }
+    .barra .bx { background: var(--draw); }
+    .barra .b2 { background: var(--away); }
+    :root[data-theme="dark"] .barra .b1 { color: #08130f; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .barra .b1 { color: #08130f; } }
+
+    .apuesta { background: var(--brand-soft); border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    .apuesta.valor { background: var(--value-soft); }
+    .apuesta small { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+    .apuesta strong { font-size: 15px; }
+    .pct { font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+    .tag { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .06em; border-radius: 999px; padding: 2px 8px; margin-left: 6px; vertical-align: 2px; }
+    .tag.VALOR { background: var(--value); color: #fff; }
+    .tag.PROBABLE { background: var(--brand); color: #fff; }
+    :root[data-theme="dark"] .tag { color: #08130f; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tag { color: #08130f; } }
+
+    .detalles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .detalles div { background: var(--surface-2); border-radius: 8px; padding: 6px 8px; min-width: 0; }
+    .detalles span { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+    .detalles b { font-size: 13px; white-space: nowrap; }
+
+    .conf { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+    .conf .track { flex: 1; height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+    .conf .fill { height: 100%; border-radius: 99px; }
+    .conf b { color: var(--text); }
+
+    .estado { text-align: center; color: var(--muted); padding: 60px 16px; }
+    .spinner { width: 34px; height: 34px; border: 3px solid var(--border); border-top-color: var(--brand); border-radius: 50%; margin: 0 auto 14px; animation: g 0.9s linear infinite; }
+    @keyframes g { to { transform: rotate(360deg); } }
+    .aviso { margin-top: 30px; color: var(--muted); font-size: 12px; text-align: center; }
+    .demo { background: var(--value-soft); color: var(--text); border-radius: 10px; padding: 8px 12px; margin-bottom: 14px; font-size: 13px; }
+
+    @media (max-width: 640px) {
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid { grid-template-columns: 1fr; }
+      .detalles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      h1 { font-size: 19px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>⚽ Pronósticos de fútbol</h1>
+        <div class="sub" id="sub">Cargando…</div>
+      </div>
+      <div class="acciones">
+        <button class="btn" id="tema" title="Cambiar tema">🌓</button>
+        <button class="btn primary" id="refrescar">Actualizar</button>
+      </div>
+    </header>
+
+    <div id="demo" class="demo" hidden>
+      Vista de ejemplo con datos ficticios. Abre este archivo desde Apps Script (menú ⚽ Apuestas → Abrir panel, o como aplicación web) para ver los partidos reales.
+    </div>
+
+    <section class="stats" id="stats"></section>
+
+    <section class="filtros">
+      <input type="search" id="buscar" placeholder="Buscar equipo…">
+      <select id="liga"><option value="">Todas las ligas</option></select>
+      <select id="orden">
+        <option value="confianza">Ordenar: confianza</option>
+        <option value="fecha">Ordenar: fecha</option>
+        <option value="valor">Ordenar: valor (EV)</option>
+      </select>
+      <label class="check"><input type="checkbox" id="soloValor"> Solo apuestas de valor</label>
+      <label class="check"><input type="checkbox" id="soloApuesta" checked> Ocultar sin apuesta clara</label>
+    </section>
+
+    <div id="contenido">
+      <div class="estado"><div class="spinner"></div>Analizando partidos y los últimos 10 juegos de cada equipo…<br>Puede tardar hasta un minuto.</div>
+    </div>
+
+    <p class="aviso">Modelo Poisson / Dixon-Coles con forma reciente, ventaja de local y enfrentamientos directos.
+      Cuota justa = 1 / probabilidad: apuesta solo si tu casa paga más. No es garantía; apuesta con responsabilidad.</p>
+  </div>
+
+  <script>
+    var DATOS = null;
+    var enAppsScript = typeof google !== 'undefined' && google.script && google.script.run;
+
+    // ---------- Tema ----------
+    (function () {
+      try {
+        var t = localStorage.getItem('tema');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+      document.getElementById('tema').onclick = function () {
+        var actual = document.documentElement.getAttribute('data-theme');
+        var oscuro = actual ? actual === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var nuevo = oscuro ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', nuevo);
+        try { localStorage.setItem('tema', nuevo); } catch (e) {}
+      };
+    })();
+
+    // ---------- Carga ----------
+    function cargar(forzar) {
+      var btn = document.getElementById('refrescar');
+      btn.disabled = true;
+      if (forzar) {
+        document.getElementById('contenido').innerHTML =
+          '<div class="estado"><div class="spinner"></div>Recalculando pronósticos…</div>';
+      }
+      if (!enAppsScript) {
+        document.getElementById('demo').hidden = false;
+        setTimeout(function () { recibir(JSON.stringify(datosDemo())); }, 300);
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(recibir)
+        .withFailureHandler(function (err) {
+          btn.disabled = false;
+          document.getElementById('contenido').innerHTML =
+            '<div class="estado">No se pudieron cargar los datos.<br><small>' + esc(err && err.message || err) + '</small></div>';
+        })
+        .obtenerPronosticosWeb(!!forzar);
+    }
+
+    function recibir(json) {
+      DATOS = JSON.parse(json);
+      document.getElementById('refrescar').disabled = false;
+      var sel = document.getElementById('liga');
+      var previo = sel.value;
+      var ligas = [];
+      DATOS.partidos.forEach(function (p) { if (ligas.indexOf(p.liga) < 0) ligas.push(p.liga); });
+      ligas.sort(function (a, b) { return DATOS.ligas.indexOf(a) - DATOS.ligas.indexOf(b); });
+      sel.innerHTML = '<option value="">Todas las ligas</option>' +
+        ligas.map(function (l) { return '<option>' + esc(l) + '</option>'; }).join('');
+      sel.value = previo;
+      document.getElementById('sub').textContent =
+        'Próximos ' + DATOS.dias + ' días · forma = últimos ' + DATOS.partidosForma +
+        ' partidos · actualizado ' + new Date(DATOS.actualizado).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+      pintar();
+    }
+
+    // ---------- Render ----------
+    function pintar() {
+      if (!DATOS) return;
+      var q = document.getElementById('buscar').value.trim().toLowerCase();
+      var liga = document.getElementById('liga').value;
+      var orden = document.getElementById('orden').value;
+      var soloValor = document.getElementById('soloValor').checked;
+      var soloApuesta = document.getElementById('soloApuesta').checked;
+
+      var lista = DATOS.partidos.filter(function (p) {
+        if (liga && p.liga !== liga) return false;
+        if (q && (p.local + ' ' + p.visita).toLowerCase().indexOf(q) < 0) return false;
+        if (soloApuesta && !p.mejor) return false;
+        if (soloValor && !(p.mejor && p.mejor.tipo === 'VALOR')) return false;
+        return true;
+      });
+      lista.sort(function (a, b) {
+        if (orden === 'fecha') return new Date(a.fecha) - new Date(b.fecha);
+        if (orden === 'valor') return ((b.mejor && b.mejor.valor) || -9) - ((a.mejor && a.mejor.valor) || -9);
+        return b.confianza - a.confianza;
+      });
+
+      var conApuesta = DATOS.partidos.filter(function (p) { return p.mejor; });
+      var valor = conApuesta.filter(function (p) { return p.mejor.tipo === 'VALOR'; });
+      var mejor = conApuesta[0];
+      document.getElementById('stats').innerHTML =
+        stat(DATOS.partidos.length, 'partidos analizados') +
+        stat(conApuesta.length, 'con apuesta recomendada') +
+        stat(valor.length, 'apuestas de valor') +
+        stat(mejor ? mejor.confianza : '-', 'confianza más alta');
+
+      var c = document.getElementById('contenido');
+      if (!lista.length) {
+        c.innerHTML = '<div class="estado">No hay partidos con esos filtros.</div>';
+        return;
+      }
+      var html = '';
+      if (orden === 'confianza' && !q) {
+        html += '<h2>🏆 Top 3 apuestas</h2><div class="grid">' +
+          lista.slice(0, 3).map(function (p, i) { return tarjeta(p, i + 1, true); }).join('') + '</div>';
+        if (lista.length > 3) {
+          html += '<h2>Resto de partidos</h2><div class="grid">' +
+            lista.slice(3).map(function (p, i) { return tarjeta(p, i + 4, false); }).join('') + '</div>';
+        }
+      } else {
+        html += '<div class="grid">' + lista.map(function (p, i) { return tarjeta(p, i + 1, false); }).join('') + '</div>';
+      }
+      c.innerHTML = html;
+    }
+
+    function stat(v, t) { return '<div class="stat"><b>' + v + '</b><span>' + t + '</span></div>'; }
+
+    function tarjeta(p, n, top) {
+      var f = new Date(p.fecha);
+      var fecha = f.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }) +
+        ' · ' + f.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      var m = p.mejor;
+      var apuesta = m
+        ? '<div class="apuesta' + (m.tipo === 'VALOR' ? ' valor' : '') + '">' +
+            '<div><small>Mejor apuesta<span class="tag ' + m.tipo + '">' + m.tipo + '</span></small>' +
+            '<strong>' + esc(m.mercado) + '</strong></div>' +
+            '<div class="pct">' + pct(m.prob) + '</div></div>'
+        : '<div class="apuesta"><div><small>Mejor apuesta</small><strong>Sin apuesta clara</strong></div></div>';
+
+      var color = p.confianza >= 65 ? 'var(--win)' : p.confianza >= 50 ? 'var(--value)' : 'var(--loss)';
+      return '<article class="card' + (top ? ' top' : '') + '">' +
+        '<div class="meta"><span><span class="rank">#' + n + '</span><span class="liga">' + esc(p.liga) + '</span></span><span>' + fecha + '</span></div>' +
+        '<div class="equipos">' +
+          '<div class="equipo" title="' + esc(p.local) + '">🏠 ' + esc(p.local) + '</div>' + forma(p.formaLocal) +
+          '<div class="equipo" title="' + esc(p.visita) + '">✈️ ' + esc(p.visita) + '</div>' + forma(p.formaVisita) +
+        '</div>' +
+        '<div class="barra" title="Local / Empate / Visita">' +
+          seg('b1', p.p1, '1') + seg('bx', p.px, 'X') + seg('b2', p.p2, '2') +
+        '</div>' +
+        apuesta +
+        '<div class="detalles">' +
+          det('xG', p.xgLocal.toFixed(2) + ' – ' + p.xgVisita.toFixed(2)) +
+          det('Marcador', p.marcador) +
+          det('+2.5 goles', pct(p.o25)) +
+          det('Ambos anotan', pct(p.btts)) +
+          det('H2H local', p.h2h) +
+          det('Cuota justa', m ? (1 / m.prob).toFixed(2) : '–') +
+          det('Cuota casa', m && m.cuota ? m.cuota.toFixed(2) : '–') +
+          det('Valor (EV)', m && m.valor != null ? (m.valor >= 0 ? '+' : '') + Math.round(m.valor * 100) + '%' : '–') +
+        '</div>' +
+        '<div class="conf">Confianza <div class="track"><div class="fill" style="width:' +
+          Math.min(100, p.confianza) + '%;background:' + color + '"></div></div><b>' + p.confianza + '</b></div>' +
+      '</article>';
+    }
+
+    function seg(cls, p, l) {
+      var w = Math.max(p * 100, 0.5);
+      return '<div class="' + cls + '" style="width:' + w + '%">' + (p >= 0.12 ? l + ' ' + pct(p) : '') + '</div>';
+    }
+    function forma(f) {
+      if (!f) return '<div class="forma"></div>';
+      return '<div class="forma" title="Más reciente a la izquierda">' +
+        f.slice(0, 5).split('').map(function (r) {
+          var k = r === 'W' ? 'G' : r === 'D' ? 'E' : r === 'L' ? 'P' : r;
+          return '<i class="' + k + '">' + k + '</i>';
+        }).join('') + '</div>';
+    }
+    function det(t, v) { return '<div><span>' + t + '</span><b>' + esc(String(v)) + '</b></div>'; }
+    function pct(x) { return Math.round(x * 100) + '%'; }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    // ---------- Datos de ejemplo (solo fuera de Apps Script) ----------
+    function datosDemo() {
+      var h = Date.now();
+      function d(horas) { return new Date(h + horas * 36e5).toISOString(); }
+      return {
+        actualizado: new Date().toISOString(), dias: 7, partidosForma: 10,
+        ligas: ['Liga MX', 'Champions League', 'LaLiga', 'Premier League'],
+        partidos: [
+          { fecha: d(30), liga: 'Liga MX', local: 'Club América', visita: 'Pumas UNAM', formaLocal: 'GGEGPGGEGG', formaVisita: 'PEGPPEGPEG', h2h: '3G 1E 1P', xgLocal: 1.92, xgVisita: 0.88, p1: 0.59, px: 0.23, p2: 0.18, o25: 0.53, btts: 0.47, marcador: '1-0', confianza: 74, mejor: { mercado: 'Gana Club América', tipo: 'VALOR', prob: 0.59, cuota: 1.95, valor: 0.15 } },
+          { fecha: d(52), liga: 'Champions League', local: 'Real Madrid', visita: 'Manchester City', formaLocal: 'GGGEGGPGGE', formaVisita: 'GEGGGPGGEG', h2h: '2G 2E 1P', xgLocal: 1.71, xgVisita: 1.58, p1: 0.41, px: 0.25, p2: 0.34, o25: 0.62, btts: 0.64, marcador: '1-1', confianza: 63, mejor: { mercado: 'Ambos anotan: Sí', tipo: 'PROBABLE', prob: 0.64, cuota: null, valor: null } },
+          { fecha: d(76), liga: 'LaLiga', local: 'Barcelona', visita: 'Getafe', formaLocal: 'GGGGEGGGPG', formaVisita: 'PEPEGPEEPP', h2h: '4G 1E 0P', xgLocal: 2.35, xgVisita: 0.61, p1: 0.73, px: 0.17, p2: 0.10, o25: 0.61, btts: 0.38, marcador: '2-0', confianza: 72, mejor: { mercado: 'Gana Barcelona', tipo: 'PROBABLE', prob: 0.73, cuota: null, valor: null } },
+          { fecha: d(100), liga: 'Premier League', local: 'Arsenal', visita: 'Liverpool', formaLocal: 'GEGGGEGPGG', formaVisita: 'GGEGPGGGEG', h2h: '1G 3E 1P', xgLocal: 1.45, xgVisita: 1.39, p1: 0.38, px: 0.28, p2: 0.34, o25: 0.52, btts: 0.56, marcador: '1-1', confianza: 55, mejor: { mercado: 'Arsenal o Empate (1X)', tipo: 'PROBABLE', prob: 0.66, cuota: null, valor: null } },
+          { fecha: d(120), liga: 'Liga MX', local: 'Tigres UANL', visita: 'Monterrey', formaLocal: 'GEEGPGEGGE', formaVisita: 'GGEPGEGEGP', h2h: '2G 2E 2P', xgLocal: 1.31, xgVisita: 1.12, p1: 0.40, px: 0.30, p2: 0.30, o25: 0.43, btts: 0.48, marcador: '1-1', confianza: 57, mejor: { mercado: 'Menos de 3.5 goles', tipo: 'PROBABLE', prob: 0.77, cuota: null, valor: null } }
+        ]
+      };
+    }
+
+    ['buscar', 'liga', 'orden', 'soloValor', 'soloApuesta'].forEach(function (id) {
+      document.getElementById(id).addEventListener(id === 'buscar' ? 'input' : 'change', pintar);
+    });
+    document.getElementById('refrescar').onclick = function () { cargar(true); };
+    cargar(false);
+  </script>
+</body>
+</html>

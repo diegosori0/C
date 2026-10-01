@@ -9,6 +9,12 @@ Europa League, Concachampions, Libertadores, MLS, etc.) y estima **la mejor apue
 3. Ejecuta `actualizarPronosticos` y acepta permisos.
 4. Recarga la hoja: menú **⚽ Apuestas** → *Actualizar pronósticos* / *Programar actualización diaria*.
 
+## Panel web (Index.html)
+1. En el editor de Apps Script: **+ → HTML**, nómbralo `Index` y pega `Index.html`.
+2. Ábrelo desde la hoja con **⚽ Apuestas → Abrir panel**, o publícalo como página web:
+   **Implementar → Nueva implementación → Aplicación web** y abre la URL (también desde el celular).
+3. Si abres `Index.html` directo en el navegador, muestra datos de ejemplo.
+
 ## Cómo calcula
 - **Nivel actual:** últimos 10 partidos de cada equipo (los más recientes pesan más):
   goles a favor, en contra y puntos por partido. En copas internacionales suma también su liga local.

@@ -65,6 +65,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('⚽ Apuestas')
     .addItem('Actualizar pronósticos', 'actualizarPronosticos')
+    .addItem('Abrir panel', 'abrirPanel')
     .addSeparator()
     .addItem('Programar actualización diaria (8 am)', 'programarDiario')
     .addItem('Quitar programación', 'quitarProgramacion')
@@ -87,11 +88,23 @@ function quitarProgramacion() {
 
 function actualizarPronosticos() {
   const inicio = Date.now();
-  const partidos = buscarProximosPartidos_();
-  if (!partidos.length) {
+  const resultados = calcularPronosticos_();
+  if (!resultados.length) {
     aviso_('No se encontraron partidos en los próximos ' + CONFIG.DIAS_ADELANTE + ' días.');
     return;
   }
+
+  escribirHoja_(resultados);
+  escribirTop_(resultados.filter(r => r.mejor));
+  if (CONFIG.EMAIL_TOP) enviarCorreo_(resultados.filter(r => r.mejor).slice(0, CONFIG.TOP_N));
+
+  Logger.log('Analizados %s partidos en %s s', resultados.length, Math.round((Date.now() - inicio) / 1000));
+}
+
+/** Busca partidos, analiza y devuelve los resultados ordenados por confianza. */
+function calcularPronosticos_() {
+  const partidos = buscarProximosPartidos_();
+  if (!partidos.length) return [];
 
   // Historial de cada equipo (deduplicado, en paralelo y con caché).
   const historiales = cargarHistoriales_(partidos);
@@ -113,12 +126,62 @@ function actualizarPronosticos() {
 
   const resultados = partidos.map(p => analizarPartido_(p, historiales, mediaLiga[p.liga.id]));
   resultados.sort((a, b) => b.confianza - a.confianza);
+  return resultados;
+}
 
-  escribirHoja_(resultados);
-  escribirTop_(resultados.filter(r => r.mejor));
-  if (CONFIG.EMAIL_TOP) enviarCorreo_(resultados.filter(r => r.mejor).slice(0, CONFIG.TOP_N));
+// ============================== PANEL WEB ==================================
 
-  Logger.log('Analizados %s partidos en %s s', resultados.length, Math.round((Date.now() - inicio) / 1000));
+/** Publica Index.html como aplicación web (Implementar > Nueva implementación). */
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('Index')
+    .setTitle('Pronósticos de fútbol')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+/** Abre el panel dentro de la hoja de cálculo. */
+function abrirPanel() {
+  const html = HtmlService.createHtmlOutputFromFile('Index').setWidth(1200).setHeight(800);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Pronósticos de fútbol');
+}
+
+/** Llamada desde Index.html. Guarda 1 h en caché salvo que `forzar` sea true. */
+function obtenerPronosticosWeb(forzar) {
+  const cache = CacheService.getScriptCache();
+  if (!forzar) {
+    const guardado = cache.get('web_json');
+    if (guardado) return guardado;
+  }
+  const datos = {
+    actualizado: new Date().toISOString(),
+    dias: CONFIG.DIAS_ADELANTE,
+    partidosForma: CONFIG.PARTIDOS_FORMA,
+    ligas: CONFIG.LIGAS.map(l => l.nombre),
+    partidos: calcularPronosticos_().map(r => ({
+      fecha: r.p.fecha.toISOString(),
+      liga: r.p.liga.nombre,
+      local: r.p.local.nombre,
+      visita: r.p.visita.nombre,
+      formaLocal: r.sL.forma || r.p.local.formaEspn || '',
+      formaVisita: r.sV.forma || r.p.visita.formaEspn || '',
+      h2h: r.h2h,
+      xgLocal: redondear_(r.lamL, 2),
+      xgVisita: redondear_(r.lamV, 2),
+      p1: r.pr.local, px: r.pr.empate, p2: r.pr.visita,
+      o25: r.pr.o25, btts: r.pr.btts,
+      marcador: r.pr.marcador,
+      confianza: r.confianza,
+      mejor: r.mejor ? {
+        mercado: r.mejor.mercado,
+        tipo: r.mejor.tipo,
+        prob: r.mejor.prob,
+        cuota: r.mejor.cuota || null,
+        valor: r.mejor.valor === undefined ? null : r.mejor.valor
+      } : null
+    }))
+  };
+  const json = JSON.stringify(datos);
+  try { cache.put('web_json', json, 60 * 60); } catch (e) { /* demasiado grande */ }
+  return json;
 }
 
 // ============================ DATOS (ESPN) =================================
